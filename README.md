@@ -1,4 +1,5 @@
 # 🌱 CarbonSwap: Plantation Location Recommendation API
+https://carbonswap-ai-location-recommendation.onrender.com/recommendations/
 
 **CarbonSwap** is a digital marketplace that connects companies with credible NGOs to simplify the carbon offset process in a transparent and measurable way.
 
