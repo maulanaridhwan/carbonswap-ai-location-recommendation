@@ -31,7 +31,7 @@ However, companies still face major challenges in fulfilling ESG (Environmental,
 ### 🔑 Key Features
 - **Verified NGO Partnerships** — connect companies with trusted carbon offset projects.  
 - **AI-Powered Insights (Swappy AI)** — suggest impactful projects and predict carbon outcomes.  
-- **Blockchain Proof of Ownership** — every transaction generates a verifiable ownership certificate.  
+- **Proof of Ownership** — every transaction generates a verifiable ownership certificate.  
 - **Bank Collaboration (Custodian Role)** — ensures secure and transparent fund flow.  
 - **Real-Time Monitoring & Certification** — automatic ESG reporting with project progress tracking.
 
@@ -98,7 +98,7 @@ All indicators are normalized and combined to generate an **overall environmenta
 ## 🧠 Tech Stack
 
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=python,fastapi,pytorch,sklearn,pandas,numpy,react,tailwind,mongodb,git,github" />
+  <img src="https://skillicons.dev/icons?i=python,fastapi,pytorch,sklearn,react,git,github" />
 </p>
 
 | Category | Tools |
@@ -106,9 +106,8 @@ All indicators are normalized and combined to generate an **overall environmenta
 | **Backend** | FastAPI, Uvicorn |
 | **AI/NLP** | Hugging Face Transformers, PyTorch, SentencePiece |
 | **Data Processing** | Pandas, NumPy, Scikit-learn |
-| **Database** | MongoDB |
 | **Deployment** | Render, Koyeb, Railway |
-| **Frontend Integration** | React + Tailwind (CarbonSwap Dashboard) |
+| **Frontend Integration** | React (CarbonSwap Dashboard) |
 | **Versioning** | Git, GitHub |
 
 ---
@@ -141,33 +140,11 @@ Visit: **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)** → Swagger 
 
 ---
 
-## ☁️ Deployment on Render
-
-1. Push this project to **GitHub**  
-2. Ensure the following files exist in the root directory:
-   ```
-   app.py
-   requirements.txt
-   location.csv
-   README.md
-   ```
-3. Create a new **Render Web Service** → select your GitHub repo  
-4. Set the start command as:
-   ```
-   uvicorn app:app --host=0.0.0.0 --port=10000
-   ```
-
-✅ Once deployed, your API will be publicly accessible and ready for integration with the CarbonSwap frontend.
-
----
-
 ## 📊 Dataset
 
 `location.csv` — contains plantation project data with these columns:
 ```
-Nama_Lokasi, Deskripsi, Jenis_Bibit, Luas_ha, Pohon_Tertanam,
-Karbon_Terserap, Annual_Survival_Rate, Orang_Terlibat,
-Rating_Ulasan, Jumlah_Ulasan, Ulasan_1, Ulasan_2
+nama_lokasi,jenis_bibit,luas_ha,total_kampanye,orang_terlibat,pohon_tertanam,karbon_terserap,annual_survival_rate,mean_annual_temp,mean_annual_precip,soil_ph,rating_ulasan,jumlah_ulasan,ulasan_1,ulasan_2,ulasan_3,ulasan_4
 ```
 
 ---
@@ -176,9 +153,7 @@ Rating_Ulasan, Jumlah_Ulasan, Ulasan_1, Ulasan_2
 1. Badan Pusat Statistik Indonesia (BPS)  
 2. World Meteorological Organization (WMO)  
 3. Indonesia Carbon Market Whitepaper  
-
-Additional Reference:  
-🎥 [Pitch Deck (Google Drive)](https://drive.google.com/file/d/1wJRPQbN4tcifJFRtVVkKbxPRRhT5oCai/view?usp=sharing)
+4. Restor.eco
 
 ---
 
