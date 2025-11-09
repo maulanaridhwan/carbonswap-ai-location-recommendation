@@ -50,22 +50,23 @@ It analyzes project data from `location.csv` and ranks each location using a wei
 ### 🧩 Indicator Categories
 
 #### 1. 🌳 Project Performance Indicators
-Reflect how effectively a project operates and grows.
-| Feature | Description | Weight |
-|----------|--------------|--------|
-| `pohon_tertanam` | Number of trees planted | 0.10 |
-| `luas_ha` | Total plantation area (ha) | 0.15 |
-| `annual_survival_rate` | Tree survival rate (%) | 0.20 |
-| `jumlah_ulasan` | Number of reviews | 0.05 |
+These measure the operational success of plantation projects.
+| Feature                | Description                      | Weight |
+| ---------------------- | -------------------------------- | ------ |
+| `trees_planted`        | Total number of trees planted    | 0.10   |
+| `area_ha`              | Total plantation area (hectares) | 0.15   |
+| `annual_survival_rate` | Tree survival rate (%)           | 0.20   |
+| `review_count`         | Number of user reviews           | 0.05   |
 
 #### 2. 🌾 Socio-Ecological Indicators
-Represent both ecological and social sustainability impacts.
-| Feature | Description | Weight |
-|----------|--------------|--------|
-| `karbon_terserap` | CO₂ absorbed (tons/year) | 0.25 |
-| `orang_terlibat` | Number of people involved | 0.08 |
-| `rating_ulasan` | Average project rating | 0.07 |
-| `nlp_sentiment` | Sentiment score from feedback (via NLP) | 0.10 |
+These reflect sustainability, social engagement, and environmental impact.
+| Feature           | Description                             | Weight |
+| ----------------- | --------------------------------------- | ------ |
+| `carbon_absorbed` | CO₂ absorbed annually (tons)            | 0.25   |
+| `people_involved` | Number of people engaged in the project | 0.08   |
+| `review_rating`   | Average user rating                     | 0.07   |
+| `nlp_sentiment`   | Sentiment score from project feedback   | 0.10   |
+
 
 All indicators are normalized and combined to generate an **overall environmental performance score**.
 
@@ -150,9 +151,26 @@ Visit: **[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)** → Swagger 
 ## 📊 Dataset
 
 `location.csv` — contains plantation project data with these columns:
-```
-nama_lokasi,jenis_bibit,luas_ha,total_kampanye,orang_terlibat,pohon_tertanam,karbon_terserap,annual_survival_rate,mean_annual_temp,mean_annual_precip,soil_ph,rating_ulasan,jumlah_ulasan,ulasan_1,ulasan_2,ulasan_3,ulasan_4
-```
+| Column                 | Description                                        |
+| ---------------------- | -------------------------------------------------- |
+| `id`                   | Unique identifier                                  |
+| `location_name`        | Name of plantation site                            |
+| `province`             | Province where the project is located              |
+| `description`          | Project and ecosystem summary                      |
+| `seed_type`            | Tree species used in the project                   |
+| `area_ha`              | Total plantation area (hectares)                   |
+| `total_campaigns`      | Total number of campaigns run                      |
+| `people_involved`      | Number of participants or local community members  |
+| `trees_planted`        | Number of trees planted                            |
+| `carbon_absorbed`      | Annual CO₂ absorption (tons)                       |
+| `annual_survival_rate` | Tree survival rate (%)                             |
+| `mean_annual_temp`     | Average annual temperature (°C)                    |
+| `mean_annual_precip`   | Average annual precipitation (mm)                  |
+| `soil_ph`              | Average soil pH value                              |
+| `review_rating`        | Average review score                               |
+| `review_count`         | Total number of reviews                            |
+| `image`                | Project image URL                                  |
+| `review_1`–`review_4`  | Project feedback (used for NLP sentiment analysis) |
 
 ---
 
