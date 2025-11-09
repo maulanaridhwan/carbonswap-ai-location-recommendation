@@ -86,7 +86,7 @@ All indicators are normalized and combined to generate an **overall environmenta
         "locName": "Bedono Village",
         "locDesc": "A coastal area highly vulnerable to rising sea levels and land subsidence, making mangrove restoration vital to protect the shoreline and local communities.",
         "locImage": "https://storage.googleapis.com/restor2-prod-1-sites/fa58735c-b79b-4e1c-9695-420e6236f53f/fe0d5f7e-eb3f-4145-b72e-8ff3fe55cb13/600",
-        "province": "Central Java",
+        "province": "JawaTengah",
         "treeType": "Mangrove Rhizopora",
         "score": 0.7255
     },
@@ -94,7 +94,7 @@ All indicators are normalized and combined to generate an **overall environmenta
         "locName": "Trimulyo Coast",
         "locDesc": "A coastal green area that serves as a natural barrier protecting the northern coast and the city from flooding. However, severe abrasion, tidal flooding, and waste pollution have increasingly threatened the area.",
         "locImage": "https://storage.googleapis.com/restor2-prod-1-sites/84a10553-69b7-4189-b424-cde450ac7ef7/b06cac74-eccf-435b-8ae8-55f99dfc4596/600",
-        "province": "Central Java",
+        "province": "JawaTengah",
         "treeType": "Mangrove Rhizopora",
         "score": 0.5417
     },
