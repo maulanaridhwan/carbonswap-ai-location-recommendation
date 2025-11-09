@@ -1,36 +1,37 @@
+# app.py
 from fastapi import FastAPI
 from pydantic import BaseModel
 import pandas as pd
 import numpy as np
 import re
 from sklearn.preprocessing import MinMaxScaler
-from typing import List, Dict, Any
+from typing import List
 import os
 
-# Optional transformers
+# Optional transformers (keberadaan tidak penting)
 try:
     from transformers import pipeline
     HF_AVAILABLE = True
-except Exception as e:
+except Exception:
     HF_AVAILABLE = False
 
 app = FastAPI(title="CarbonSwap Recommendation API")
 
-# CONFIG: weights
+# WEIGHTS: gunakan nama fitur yang sesuai CSV Anda
 WEIGHTS = {
-    "karbon_terserap": 0.25,
+    "carbon_absorbed": 0.25,
     "annual_survival_rate": 0.20,
-    "luas_ha": 0.15,
-    "pohon_tertanam": 0.10,
-    "orang_terlibat": 0.08,
-    "rating_ulasan": 0.07,
-    "jumlah_ulasan": 0.05,
+    "area_ha": 0.15,
+    "trees_planted": 0.10,
+    "people_involved": 0.08,
+    "review_rating": 0.07,
+    "review_count": 0.05,
     "nlp_sentiment": 0.10
 }
 
-CSV_PATH = os.getenv("LOCATIONS_CSV", "location.csv")
+CSV_PATH = os.getenv("LOCATIONS_CSV", "./data/location.csv")
 
-# helper parsing functions
+# ---------- helpers ----------
 def parse_int_like(s):
     if pd.isna(s):
         return 0
@@ -84,23 +85,38 @@ def safe_to_float(x):
     except:
         return 0.0
 
-# NLP sentiment (per-location aggregated)
+def pick_column_value(row: pd.Series, candidates: List[str], default=""):
+    """
+    Return first non-empty value from candidates present in row (stringify non-strings).
+    """
+    for c in candidates:
+        if c in row.index and pd.notna(row.get(c)):
+            v = row.get(c)
+            if isinstance(v, str):
+                if v.strip() == "":
+                    continue
+                return v
+            if v is not None:
+                return str(v)
+    return default
+
+# ---------- sentiment (optional HF, fallback rule-based) ----------
 SENT_MODEL_NAME = os.getenv("HF_SENT_MODEL", "indolem/indobert-base-uncased-sentiment")
 sentiment_pipe = None
 if HF_AVAILABLE:
     try:
         sentiment_pipe = pipeline("sentiment-analysis", model=SENT_MODEL_NAME)
-    except Exception as e:
-        # fallback
+    except Exception:
         sentiment_pipe = None
 
 def avg_sentiment_for_texts(texts: List[str]) -> float:
     vals = []
     if sentiment_pipe is None:
-        pos = ["baik","bagus","aktif","mudah","cocok","sukses","terawat","terjaga","support"]
-        neg = ["mati","buruk","sulit","abrasi","rusak","terbengkalai","sampah","abrasi"]
+        # simple rule-based fallback using common positive/negative tokens (EN + ID)
+        pos = ["good","great","active","easy","suitable","success","maintained","clean","support","baik","bagus"]
+        neg = ["dead","bad","difficult","erosion","damaged","abandoned","trash","buruk","rusak"]
         for t in texts:
-            if not isinstance(t, str) or t.strip()=="":
+            if not isinstance(t, str) or t.strip() == "":
                 continue
             low = t.lower()
             score = 0.5
@@ -113,7 +129,7 @@ def avg_sentiment_for_texts(texts: List[str]) -> float:
             vals.append(max(0.0, min(1.0, score)))
     else:
         for t in texts:
-            if not isinstance(t, str) or t.strip()=="":
+            if not isinstance(t, str) or t.strip() == "":
                 continue
             try:
                 out = sentiment_pipe(t[:512])
@@ -129,23 +145,27 @@ def avg_sentiment_for_texts(texts: List[str]) -> float:
         return 0.5
     return float(sum(vals) / len(vals))
 
-# core scoring function 
+# ---------- core scoring ----------
 def compute_scores(df: pd.DataFrame, include_nlp: bool = True) -> pd.DataFrame:
-    # cleaning numeric columns
     dfc = df.copy()
-    dfc["luas_ha"] = dfc.get("luas_ha", 0).apply(parse_numeric_allow_k)
-    dfc["orang_terlibat"] = dfc.get("orang_terlibat", 0).apply(parse_int_like)
-    dfc["pohon_tertanam"] = dfc.get("pohon_tertanam", 0).apply(parse_int_like)
-    dfc["karbon_terserap"] = dfc.get("karbon_terserap", 0).apply(parse_numeric_allow_k)
+
+    # canonical numeric columns using your CSV header names (english primary, id fallback)
+    dfc["area_ha"] = dfc.get("area_ha", dfc.get("luas_ha", 0)).apply(parse_numeric_allow_k)
+    dfc["people_involved"] = dfc.get("people_involved", dfc.get("orang_terlibat", 0)).apply(parse_int_like)
+    dfc["trees_planted"] = dfc.get("trees_planted", dfc.get("pohon_tertanam", 0)).apply(parse_int_like)
+    # CSV has 'carbon_absorbed' per your header
+    dfc["carbon_absorbed"] = dfc.get("carbon_absorbed", dfc.get("carbon_sequestered", dfc.get("karbon_terserap", 0))).apply(parse_numeric_allow_k)
     dfc["annual_survival_rate"] = dfc.get("annual_survival_rate", 0).apply(parse_numeric_allow_k)
     dfc["annual_survival_rate"] = dfc["annual_survival_rate"].apply(lambda v: v/100.0 if v>1 else v)
-    dfc["rating_ulasan"] = dfc.get("rating_ulasan", 0).apply(lambda x: safe_to_float(parse_numeric_allow_k(x)))
-    dfc["jumlah_ulasan"] = dfc.get("jumlah_ulasan", 0).apply(parse_int_like)
 
-    # NLP
-    review_cols = [c for c in dfc.columns if c.lower().startswith("ulasan") or c.lower().startswith("ulasan_")]
+    # rating and counts (header: review_rating, review_count)
+    dfc["review_rating"] = dfc.get("review_rating", dfc.get("rating", dfc.get("rating_ulasan", 0))).apply(lambda x: safe_to_float(parse_numeric_allow_k(x)))
+    dfc["review_count"] = dfc.get("review_count", dfc.get("jumlah_ulasan", 0)).apply(parse_int_like)
+
+    # NLP sentiment: detect 'ulasan_' (Indonesian) or 'review_' (English)
+    review_cols = [c for c in dfc.columns if c.lower().startswith("ulasan") or c.lower().startswith("review")]
     nlp_scores = []
-    for idx, row in dfc.iterrows():
+    for _, row in dfc.iterrows():
         texts = []
         for c in review_cols:
             v = row.get(c)
@@ -154,64 +174,102 @@ def compute_scores(df: pd.DataFrame, include_nlp: bool = True) -> pd.DataFrame:
         nlp_scores.append(avg_sentiment_for_texts(texts))
     dfc["nlp_sentiment"] = nlp_scores
 
-    feat_map = {
-        "karbon_terserap": "karbon_terserap",
-        "annual_survival_rate": "annual_survival_rate",
-        "luas_ha": "luas_ha",
-        "pohon_tertanam": "pohon_tertanam",
-        "orang_terlibat": "orang_terlibat",
-        "rating_ulasan": "rating_ulasan",
-        "jumlah_ulasan": "jumlah_ulasan",
-        "nlp_sentiment": "nlp_sentiment"
-    }
+    # pick features that exist in dfc according to WEIGHTS keys
+    features = [k for k in WEIGHTS.keys() if k in dfc.columns]
 
-    features = [feat_map[k] for k in WEIGHTS.keys() if feat_map[k] in dfc.columns]
+    if not features:
+        raise ValueError(f"No numeric features found for scoring. Expected keys: {list(WEIGHTS.keys())}. CSV columns: {list(dfc.columns)}")
 
-    # fill missing numeric
+    # ensure numeric
     for f in features:
         dfc[f] = pd.to_numeric(dfc[f], errors='coerce').fillna(0.0)
 
-    # normalize
     X = dfc[features].astype(float).values
-    if X.shape[1] == 0:
-        raise ValueError("No features available for scoring.")
     scaler = MinMaxScaler()
     Xs = scaler.fit_transform(X)
     df_scaled = pd.DataFrame(Xs, columns=features, index=dfc.index)
 
-    # weighted sum
     score = np.zeros(len(dfc))
     for key, w in WEIGHTS.items():
-        col = feat_map.get(key)
-        if col in df_scaled.columns:
-            score += df_scaled[col].values * w
+        if key in df_scaled.columns:
+            score += df_scaled[key].values * w
 
-    dfc["skor_total"] = score
-    dfc_sorted = dfc.sort_values("skor_total", ascending=False).reset_index(drop=True)
+    dfc["score"] = score
+    dfc_sorted = dfc.sort_values("score", ascending=False).reset_index(drop=True)
     return dfc_sorted
 
-# endpoint(s)
+# ---------- Pydantic model ----------
 class RecommendationItem(BaseModel):
-    nama_lokasi: str
-    jenis_bibit: str
-    skor_total: float
+    locName: str = ""
+    locDesc: str = ""
+    locImage: str = ""
+    province: str = ""
+    treeType: str = ""
+    score: float = 0.0
 
+# ---------- endpoints ----------
 @app.get("/recommendations", response_model=List[RecommendationItem])
 def get_recommendations(top_k: int = 10, include_nlp: bool = True):
     if not os.path.exists(CSV_PATH):
         return []
     df = pd.read_csv(CSV_PATH)
     df_sorted = compute_scores(df, include_nlp=include_nlp)
-    top = df_sorted.head(top_k)[["nama_lokasi", "jenis_bibit", "skor_total"]]
-    top["skor_total"] = top["skor_total"].round(4)
+
+    # candidates tuned to your CSV header
+    name_cols = ["location_name", "name", "locName", "title", "site_name", "nama_lokasi", "site", "id"]
+    desc_cols = ["description", "locDesc", "deskripsi", "desc", "details"]
+    image_cols = ["image", "image_url", "locImage", "photo"]
+    province_cols = ["province", "provinsi", "prov"]
+    tree_cols = ["seed_type", "treeType", "jenis_bibit", "jenis", "seed", "species"]
+
+    # create friendly columns so selection won't KeyError
+    df_sorted["locName"] = df_sorted.apply(lambda r: pick_column_value(r, name_cols, default=""), axis=1)
+    df_sorted["locDesc"] = df_sorted.apply(lambda r: pick_column_value(r, desc_cols, default=""), axis=1)
+    df_sorted["locImage"] = df_sorted.apply(lambda r: pick_column_value(r, image_cols, default=""), axis=1)
+    df_sorted["province"] = df_sorted.apply(lambda r: pick_column_value(r, province_cols, default=""), axis=1)
+    df_sorted["treeType"] = df_sorted.apply(lambda r: pick_column_value(r, tree_cols, default=""), axis=1)
+
+    # fallback fill for empty names (so Postman never shows empty locName)
+    for i, _ in df_sorted.iterrows():
+        if not df_sorted.at[i, "locName"]:
+            # prefer id if exists
+            idx_val = df_sorted.at[i, "id"] if "id" in df_sorted.columns else None
+            if pd.notna(idx_val) and str(idx_val).strip() != "":
+                df_sorted.at[i, "locName"] = f"Site {int(idx_val)}"
+            else:
+                df_sorted.at[i, "locName"] = f"Site {i+1}"
+
+    top = df_sorted.head(top_k)[["locName", "locDesc", "locImage", "province", "treeType", "score"]].copy()
+    top["score"] = top["score"].round(4)
     return top.to_dict(orient="records")
 
-# endpoint to return full ranked table
 @app.get("/ranked_full")
 def get_full_ranked(include_nlp: bool = True):
     if not os.path.exists(CSV_PATH):
         return {"error": "no csv"}
     df = pd.read_csv(CSV_PATH)
     df_sorted = compute_scores(df, include_nlp=include_nlp)
-    df_sorted["skor_total"] = df_sorted["skor_total"].round(4)
+
+    # same friendly mapping
+    name_cols = ["location_name", "name", "locName", "title", "site_name", "nama_lokasi", "site", "id"]
+    desc_cols = ["description", "locDesc", "deskripsi", "desc", "details"]
+    image_cols = ["image", "image_url", "locImage", "photo"]
+    province_cols = ["province", "provinsi", "prov"]
+    tree_cols = ["seed_type", "treeType", "jenis_bibit", "jenis", "seed", "species"]
+
+    df_sorted["locName"] = df_sorted.apply(lambda r: pick_column_value(r, name_cols, default=""), axis=1)
+    df_sorted["locDesc"] = df_sorted.apply(lambda r: pick_column_value(r, desc_cols, default=""), axis=1)
+    df_sorted["locImage"] = df_sorted.apply(lambda r: pick_column_value(r, image_cols, default=""), axis=1)
+    df_sorted["province"] = df_sorted.apply(lambda r: pick_column_value(r, province_cols, default=""), axis=1)
+    df_sorted["treeType"] = df_sorted.apply(lambda r: pick_column_value(r, tree_cols, default=""), axis=1)
+
+    for i, _ in df_sorted.iterrows():
+        if not df_sorted.at[i, "locName"]:
+            idx_val = df_sorted.at[i, "id"] if "id" in df_sorted.columns else None
+            if pd.notna(idx_val) and str(idx_val).strip() != "":
+                df_sorted.at[i, "locName"] = f"Site {int(idx_val)}"
+            else:
+                df_sorted.at[i, "locName"] = f"Site {i+1}"
+
+    df_sorted["score"] = df_sorted["score"].round(4)
     return df_sorted.to_dict(orient="records")
